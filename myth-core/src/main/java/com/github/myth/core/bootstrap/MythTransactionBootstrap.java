@@ -29,7 +29,7 @@ import org.springframework.stereotype.Component;
 
 
 /**
- * @author xiaoyu
+ * 分布式事务启动类
  */
 @Component
 public class MythTransactionBootstrap extends MythConfig implements ApplicationContextAware {
@@ -44,9 +44,9 @@ public class MythTransactionBootstrap extends MythConfig implements ApplicationC
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        SpringBeanUtils.getInstance().setCfgContext((ConfigurableApplicationContext) applicationContext);
+        SpringBeanUtils.getInstance().setCfgContext((ConfigurableApplicationContext) applicationContext);//保存spring上下文
         //因为自身继承了MythConfig，所以这里将自身作为配置类传入start，而MythTransactionBootstrap已经在applicaionContext.xml中进行了初始化配置
-        start(this);
+        start(this);//开始初始化
     }
 
     //MythTransactionBootstrap 继承了 MythConfig ，而MythTransactionBootstrap在applicationContext.xml进行了初始化配置，于是继承自MythConfig中的属性也都初始化完成

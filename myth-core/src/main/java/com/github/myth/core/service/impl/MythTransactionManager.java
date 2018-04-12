@@ -122,7 +122,7 @@ public class MythTransactionManager {
         // 构建提供者事务记录
         MythTransaction mythTransaction =
                 buildProviderTransaction(point, mythTransactionContext.getTransId(), MythStatusEnum.BEGIN.getCode());
-        // 保存创建的事务信息 到account.payment
+        // 保存创建的事务信息（协调动作为保存SAVE) 到account.payment
         coordinatorCommand.execute(new CoordinatorAction(CoordinatorActionEnum.SAVE, mythTransaction));
 
         // 设置提供者角色
@@ -151,10 +151,6 @@ public class MythTransactionManager {
 
     }
 
-
-
-
-
     public void sendMessage() {
         MythTransaction mythTransaction = getCurrentTransaction();//这里的MythTransaction：(transId=1792919261, status=2, role=1, retriedCount=0, createTime=Wed Jan 17 10:37:24 CST 2018, lastTime=Wed Jan 17 10:37:24 CST 2018, version=1, targetClass=com.github.myth.demo.dubbo.order.service.impl.PaymentServiceImpl, targetMethod=makePayment, errorMsg=null, mythParticipants=[MythParticipant(transId=1792919261, destination=account, pattern=1, mythInvocation=MythInvocation(targetClass=interface com.github.myth.demo.dubbo.account.api.service.AccountService, methodName=payment, parameterTypes=[class com.github.myth.demo.dubbo.account.api.dto.AccountDTO], args=[AccountDTO(userId=10000, amount=100)])), MythParticipant(transId=1792919261, destination=inventory, pattern=1, mythInvocation=MythInvocation(targetClass=interface com.github.myth.demo.dubbo.inventory.api.service.InventoryService, methodName=decrease, parameterTypes=[class com.github.myth.demo.dubbo.inventory.api.dto.InventoryDTO], args=[InventoryDTO(productId=1, count=1)]))])
         if (Objects.nonNull(mythTransaction)) {
@@ -162,21 +158,17 @@ public class MythTransactionManager {
         }
     }
 
-
     public boolean isBegin() {
         return CURRENT.get() != null;
     }
-
 
     public void cleanThreadLocal() {
         CURRENT.remove();
     }
 
-
     public MythTransaction getCurrentTransaction() {
         return CURRENT.get();
     }
-
 
     public void updateStatus(String transId, Integer status) {
         coordinatorService.updateStatus(transId, status);
@@ -184,8 +176,8 @@ public class MythTransactionManager {
 
     public void registerParticipant(MythParticipant participant) {
         final MythTransaction transaction = this.getCurrentTransaction();
-        transaction.registerParticipant(participant);
-//        更新 List<MythParticipant>  只更新这一个字段数据
+        transaction.registerParticipant(participant);//将事务参与者保存到 当前事务中
+//        更新 List<MythParticipant> mythParticipants即数据库事务表中的invocation,只更新这一个字段数据
         coordinatorService.updateParticipant(transaction);
     }
 

@@ -290,7 +290,7 @@ public class CoordinatorServiceImpl implements CoordinatorService {
 //        @Myth(destination = "account")
 //        boolean payment(AccountDTO accountDTO);
 //        这时在正式调用前会被自定义的dubbo过滤器 DubboMythTransactionFilter 进行拦截，此时过滤方法中的if (Objects.nonNull(myth))成立，进入代码块
-        final List<MythParticipant> mythParticipants = mythTransaction.getMythParticipants();
+        final List<MythParticipant> mythParticipants = mythTransaction.getMythParticipants();//participants参与者的意思
             /*
              * 这里的这个判断很重要，不为空，表示本地的方法执行成功，需要执行远端的rpc方法
              * 为什么呢，因为我会在切面的finally里面发送消息，意思是切面无论如何都需要发送mq消息
@@ -449,11 +449,11 @@ public class CoordinatorServiceImpl implements CoordinatorService {
                         final int code = coordinatorAction.getAction().getCode();
                         if (CoordinatorActionEnum.SAVE.getCode() == code) {//code=0, 发起者order第一次进入切面@Myth处理时，调用StartMythTransactionHandlerd的handler方法中的mythTransactionManager.begin(point);
                             // 该方法通过coordinatorCommand.execute(new CoordinatorAction(CoordinatorActionEnum.SAVE, mythTransaction)); 将持久化消息发送至此
-                            save(coordinatorAction.getMythTransaction());
+                            save(coordinatorAction.getMythTransaction());//保存本地补偿事务信息
                         } else if (CoordinatorActionEnum.DELETE.getCode() == code) {//code=1
-                            remove(coordinatorAction.getMythTransaction().getTransId());
+                            remove(coordinatorAction.getMythTransaction().getTransId());//删除补偿事务信息
                         } else if (CoordinatorActionEnum.UPDATE.getCode() == code) {//code=2
-                            update(coordinatorAction.getMythTransaction());
+                            update(coordinatorAction.getMythTransaction());//更新补偿事务信息
                         }
                     }
                 } catch (Exception e) {

@@ -140,7 +140,7 @@ public class JdbcCoordinatorRepository implements CoordinatorRepository {
     }
 
     /**
-     * 更新 List<Participant>  只更新这一个字段数据
+     * 更新 List<Participant> mythParticipants对应数据库的invocation 只更新这一个字段数据，即只更新事务表中的 invocation事务参与者
      *
      * @param mythTransaction 实体对象
      */

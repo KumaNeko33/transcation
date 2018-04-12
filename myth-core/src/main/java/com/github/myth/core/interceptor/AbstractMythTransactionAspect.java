@@ -37,20 +37,20 @@ public abstract class AbstractMythTransactionAspect {
         this.mythTransactionInterceptor = mythTransactionInterceptor;
     }
 
-    @Pointcut("@annotation(com.github.myth.annotation.Myth)")
+    @Pointcut("@annotation(com.github.myth.annotation.Myth)")//@Pointcut切入点，配置切面的切入点为 使用了注解@Myth的方法
     public void mythTransactionInterceptor() {
 
     }
     //可以知道Spring实现类的方法凡是加了@Myth注解的，在调用的时候，都会进行 mythTransactionInterceptor.interceptor调用。
 // 也就是说一个请求链中，只要有标记该注解的业务方法，都会被加入到同一组分布式事务当中来，也就是说这么些个业务方法，要么全部执行成功，反之全部不执行~。
-    @Around("mythTransactionInterceptor()")
+    @Around("mythTransactionInterceptor()")//@Around环绕增强
     public Object interceptCompensableMethod(ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
         return mythTransactionInterceptor.interceptor(proceedingJoinPoint);
     }
 
     /**
      * spring Order 接口，该值的返回直接会影响springBean的加载顺序
-     *
+     * 我们注意到DubboMythTransactionInterceptor实现了Spring的Ordered接口，并重写了 getOrder 方法，都返回了 Ordered.HIGHEST_PRECEDENCE 那么可以知道，他是优先级最高的切面
      * @return int 类型
      */
     public abstract int getOrder();

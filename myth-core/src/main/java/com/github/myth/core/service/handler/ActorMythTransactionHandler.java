@@ -65,7 +65,7 @@ public class ActorMythTransactionHandler implements MythTransactionHandler {
 
 
     /**
-     * Myth分布式事务处理接口
+     * Myth分布式事务参与者处理接口
      *
      * @param point                  point 切点
      * @param mythTransactionContext myth事务上下文

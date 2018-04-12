@@ -77,7 +77,7 @@ public class MythDbConfig {
 
 
     /**
-     * 配置一个连接在池中最小生存的时间，单位是毫秒
+     * 配置一个连接在池中最小生存的时间，单位是毫秒，即5分钟
      */
     private int minEvictableIdleTimeMillis = 300000;
 

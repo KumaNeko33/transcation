@@ -28,14 +28,14 @@ import org.springframework.stereotype.Component;
 /**
  * @author xiaoyu
  */
-@Aspect
+@Aspect //@Aspect的作用：把当前类标识为一个切面供容器读取
 @Component
 public class DubboMythTransactionAspect extends AbstractMythTransactionAspect implements Ordered {
 
-
+    //子类设置父类的变量值，什么设计模式？
     @Autowired
     public DubboMythTransactionAspect(DubboMythTransactionInterceptor dubboMythTransactionInterceptor) {
-        super.setMythTransactionInterceptor(dubboMythTransactionInterceptor);
+        super.setMythTransactionInterceptor(dubboMythTransactionInterceptor);//设置父类AbstractMythTransactionAspect的切面拦截器为 DubboMythTransationInterceptor
     }
 
 

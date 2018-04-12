@@ -100,7 +100,7 @@ public class MythTransaction implements Serializable {
         this.lastTime = new Date();
         //CopyOnWriteArrayList是ArrayList 的一个线程安全的变体，其中所有可变操作（add、set等等）都是通过对底层数组进行一次新的复制来实现的。
 //        CopyOnWriteArrayList add(E) 和remove(int index)都是对新的数组进行修改和新增。所以在多线程操作时不会出现java.util.ConcurrentModificationException错误。
-//        所以最后得出结论：CopyOnWriteArrayList适合使用在读操作远远大于写操作的场景里，比如缓存。发生修改时候做copy，新老版本分离，保证读的高性能，适用于以读为主的情况。
+//        所以最后得出结论：CopyOnWriteArrayList 适合使用在读操作远远大于写操作的场景里，比如缓存。发生修改时候做copy，新老版本分离，保证读的高性能，适用于以读为主的情况。
         mythParticipants = Lists.newCopyOnWriteArrayList();
     }
 
@@ -111,13 +111,10 @@ public class MythTransaction implements Serializable {
         mythParticipants = Lists.newCopyOnWriteArrayList();
     }
 
-    public void
-
-
-
-    registerParticipant(MythParticipant mythParticipant) {
+    /**
+     * 将事务参与者保存到 事务中
+     */
+    public void registerParticipant(MythParticipant mythParticipant) {
         mythParticipants.add(mythParticipant);
     }
-
-
 }

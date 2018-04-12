@@ -72,10 +72,11 @@ public class MythInitServiceImpl implements MythInitService {
     public void initialization(MythConfig mythConfig) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> LOGGER.error("系统关闭")));
         try {
-            //spi加载 mq事务消息和 协调者数据库数据的 序列化工具
+            //加载spi配置，把spi的配置注入成spring的bean，方便后续使用。
+            // 就是mq事务消息和 协调者数据库数据的 序列化工具，存储方式
             loadSpiSupport(mythConfig);
             //协调者服务开启，第一次运行创建 协调者服务使用的 事务记录表 myth库中的 对应项目名称的 表；并初始化协调者线程池；
-            // 而如果配置了定时自动回复mythConfig.getNeedRecover()==true，则开启scheduledAutoRecover方法
+            // 而如果配置了定时自动回复mythConfig.getNeedRecover()==true，则开启scheduledAutoRecover方法定时补偿
             coordinatorService.start(mythConfig);
         } catch (Exception ex) {
             LogUtil.error(LOGGER, "Myth事务初始化异常:{}", ex::getMessage);

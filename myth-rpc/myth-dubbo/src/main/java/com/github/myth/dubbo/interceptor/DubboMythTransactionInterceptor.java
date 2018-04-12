@@ -43,7 +43,8 @@ public class DubboMythTransactionInterceptor implements MythTransactionIntercept
         this.mythTransactionAspectService = mythTransactionAspectService;
     }
 
-//    这里也是实现分布式事务的最关键一部分，通过同一个事务上下文来关联多子系统之间的事务关系，是分布式事务实现的核心所在。
+// interceptor对使用了@Myth注解的方法进行切面的@Around环绕增强处理
+// 这里也是实现分布式事务的最关键一部分，通过同一个事务上下文来关联多子系统之间的事务关系，是分布式事务实现的核心所在。
     @Override
     public Object interceptor(ProceedingJoinPoint pjp) throws Throwable {
         // 发起者order第一次进入切面，RpcContext 中的MYTH_TRANSACTION_CONTEXT context为null，
