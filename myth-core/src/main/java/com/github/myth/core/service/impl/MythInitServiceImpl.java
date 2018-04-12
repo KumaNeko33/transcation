@@ -57,11 +57,11 @@ public class MythInitServiceImpl implements MythInitService {
 
     private final CoordinatorService coordinatorService;
 
+    // 注入CoordinatorServiceImpl实例
     @Autowired
     public MythInitServiceImpl(CoordinatorService coordinatorService) {
         this.coordinatorService = coordinatorService;
     }
-
 
     /**
      * Myth分布式事务初始化方法
@@ -72,7 +72,7 @@ public class MythInitServiceImpl implements MythInitService {
     public void initialization(MythConfig mythConfig) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> LOGGER.error("系统关闭")));
         try {
-            //spi加载序列化工具
+            //spi加载 mq事务消息和 协调者数据库数据的 序列化工具
             loadSpiSupport(mythConfig);
             //协调者服务开启，第一次运行创建 协调者服务使用的 事务记录表 myth库中的 对应项目名称的 表；并初始化协调者线程池；
             // 而如果配置了定时自动回复mythConfig.getNeedRecover()==true，则开启scheduledAutoRecover方法
@@ -93,6 +93,7 @@ public class MythInitServiceImpl implements MythInitService {
     private void loadSpiSupport(MythConfig mythConfig) {
 
         //spi  serialize
+        //设置mq事务消息对象的序列化工具
         final SerializeEnum serializeEnum =
                 SerializeEnum.acquire(mythConfig.getSerializer());//这里的 SerializeEnum的枚举值是 kryo
         //加载 ObjectSerializer 接口的所有实现类，包括 KryoSerializer
@@ -100,12 +101,15 @@ public class MythInitServiceImpl implements MythInitService {
                 ServiceBootstrap.loadAll(ObjectSerializer.class);
         //遍历筛选出配置文件 mythConfig 配置的 ObjectSerializer实现类，即kryo 对应的 KryoSerializer
         final Optional<ObjectSerializer> serializer =
+    //Spliterator（splitable iterator可分割迭代器）接口是Java为了并行遍历数据源中的元素而设计的迭代器，类似最早Java提供的顺序遍历迭代器 Iterator，但Iterator是顺序遍历，Spliterator是并行遍历
+    //从最早Java提供顺序遍历迭代器Iterator时，那个时候还是单核时代，但现在多核时代下，顺序遍历已经不能满足需求了...如何把多个任务分配到不同核上并行执行，才是能最大发挥多核的能力，所以Spliterator应运而生啦
                 StreamSupport.stream(objectSerializers.spliterator(),
                         true)
                         .filter(objectSerializer ->
                                 Objects.equals(objectSerializer.getScheme(),
                                         serializeEnum.getSerialize())).findFirst();// SerializeEnum的枚举值是 kryo。而Stream.findFirst()  将Stream转成Optional对象
 //                Stream.of(objectSerializers.spliterator()).filter(objectSerializer -> Objects.equals(objectSerializer.getScheme(),serializeEnum.getSerialize())).findFirst();
+//       Optional对象可以用 它的泛型 接收
 //        ifPresent：
 //        如果Optional实例有值则为其调用consumer，否则不做处理
 //        要理解ifPresent方法，首先需要了解Consumer类。简答地说，Consumer类包含一个抽象方法。该抽象方法对传入的值进行处理，但没有返回值。Java8支持不用接口直接通过lambda表达式传入参数。
@@ -114,7 +118,7 @@ public class MythInitServiceImpl implements MythInitService {
 //lambda表达式对 Optional的值（下面Optional是serializer,它的值是ObjectSerializer对象，即泛型对应的对象） 调用consumer进行处理（即下面的SpringBeanUtils.getInstance().registerBean(ObjectSerializer.class.getName(), s)）。
 //这个consumer的作用是对传入的值进行处理，但没有返回值，这里：是将前面创建的 KryoSerializer 对象注入spring容器中
         serializer.ifPresent(coordinatorService::setSerializer);//设置 MessageEntity 消息对象的序列化方式为 前面创建的 KryoSerializer 对象，便于消息传播中 输入 输出
-        serializer.ifPresent(s-> SpringBeanUtils.getInstance().registerBean(ObjectSerializer.class.getName(), s));//将前面创建的 KryoSerializer 字节码注入spring容器中
+        serializer.ifPresent(s-> SpringBeanUtils.getInstance().registerBean(ObjectSerializer.class.getName(), s));//将前面创建的 KryoSerializer 字节码注入spring容器中：作用？
 
 
         //spi  repository support

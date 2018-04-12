@@ -61,6 +61,8 @@ public class MythTransactionFactoryServiceImpl implements MythTransactionFactory
         if (!mythTransactionManager.isBegin() && Objects.isNull(context)) {
             return StartMythTransactionHandler.class;
         } else {
+            // makePayment中调用accountService.payment(DTO)方法时，触发的@Myth注解拦截处理进入这里时，线程中在ThreadLocal中存储的事务上下文不为空了（在StartMythTransactionHandler中的调用mythTransactionManager.begin(point);已设置发起者角色的上下文）
+            // 调用accountService.payment(DTO)方法时所以这里返回ActorMythTransactionHandler.class
             if (context.getRole() == MythRoleEnum.LOCAL.getCode()) {
                 return LocalMythTransactionHandler.class;
             }

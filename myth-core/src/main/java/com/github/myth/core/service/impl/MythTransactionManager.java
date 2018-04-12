@@ -94,16 +94,17 @@ public class MythTransactionManager {
             mythTransaction.setTargetClass(clazz.getName());
             mythTransaction.setTargetMethod(method.getName());
         }
-        //保存当前事务信息，并通过线程池 MythTransactionThreadPool 消费消息队列 QUEUE进行 持久化到数据库
+        // 保存当前事务信息，并通过线程池 MythTransactionThreadPool 消费消息队列 QUEUE进行 持久化到数据库(SAVE(0, "保存")，
+        // 但这时还没有设置 表中 的invocation字段值（因为mythTransaction没有设置 参与协调的方法集合List<MythParticipant> mythParticipants
         coordinatorCommand.execute(new CoordinatorAction(CoordinatorActionEnum.SAVE, mythTransaction));
 
-        //当前事务保存到ThreadLocal
+        //当前事务记录保存到ThreadLocal
         CURRENT.set(mythTransaction);
 
     //设置tcc事务上下文，这个类会传递给远端
         MythTransactionContext context = new MythTransactionContext();
 
-        //设置事务id
+        //设置事务id：即事务记录的id
         context.setTransId(mythTransaction.getTransId());
 
         //设置为发起者角色
@@ -118,12 +119,13 @@ public class MythTransactionManager {
 
 
     public MythTransaction actorTransaction(ProceedingJoinPoint point, MythTransactionContext mythTransactionContext) {
+        // 构建提供者事务记录
         MythTransaction mythTransaction =
                 buildProviderTransaction(point, mythTransactionContext.getTransId(), MythStatusEnum.BEGIN.getCode());
-        //保存创建的事务信息
+        // 保存创建的事务信息 到account.payment
         coordinatorCommand.execute(new CoordinatorAction(CoordinatorActionEnum.SAVE, mythTransaction));
 
-        //设置提供者角色
+        // 设置提供者角色
         mythTransactionContext.setRole(MythRoleEnum.PROVIDER.getCode());
 
         TransactionContextLocal.getInstance().set(mythTransactionContext);
@@ -187,6 +189,13 @@ public class MythTransactionManager {
         coordinatorService.updateParticipant(transaction);
     }
 
+    /**
+     * 构造提供者事务记录
+     * @param point
+     * @param transId
+     * @param status
+     * @return
+     */
     private MythTransaction buildProviderTransaction(ProceedingJoinPoint point, String transId, Integer status) {
         MythTransaction mythTransaction = new MythTransaction(transId);
 

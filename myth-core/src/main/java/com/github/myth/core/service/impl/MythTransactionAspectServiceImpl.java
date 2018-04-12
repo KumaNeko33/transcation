@@ -56,10 +56,11 @@ public class MythTransactionAspectServiceImpl implements MythTransactionAspectSe
     @Override
     @SuppressWarnings("unchecked")
     public Object invoke(MythTransactionContext mythTransactionContext, ProceedingJoinPoint point) throws Throwable {
-        //order是发起者 即事务还没开启并且myth事务上下文是空，为 clazz = StartMythTransactionHandler.class
-        final Class clazz = mythTransactionFactoryService.factoryOf(mythTransactionContext);
+        //order是发起者 即事务还没开启并且myth事务上下文是空，则返回为 clazz = StartMythTransactionHandler.class
+        // 而order的makePayment方法中调用account项目的accountService.payment(DTO)方法时这里返回ActorMythTransactionHandler.class
+        final Class clazz = mythTransactionFactoryService.factoryOf(mythTransactionContext);//order项目为StartMythTransactionHandler.class
         final MythTransactionHandler mythTransactionHandler =
                 (MythTransactionHandler) SpringBeanUtils.getInstance().getBean(clazz);//获取StartMythTransactionHandler
-        return mythTransactionHandler.handler(point, mythTransactionContext);//Myth分布式事务处理接口
+        return mythTransactionHandler.handler(point, mythTransactionContext);//Myth分布式事务处理接口 开始处理事务StartMythTransactionHandler.handler(point, mythTransactionContext)
     }
 }

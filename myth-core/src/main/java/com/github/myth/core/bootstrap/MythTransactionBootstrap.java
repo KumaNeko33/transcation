@@ -49,7 +49,7 @@ public class MythTransactionBootstrap extends MythConfig implements ApplicationC
         start(this);
     }
 
-
+    //MythTransactionBootstrap 继承了 MythConfig ，而MythTransactionBootstrap在applicationContext.xml进行了初始化配置，于是继承自MythConfig中的属性也都初始化完成
     private void start(MythConfig tccConfig) {
         //根据配置文件MythConfig进行事务初始化
         mythInitService.initialization(tccConfig);

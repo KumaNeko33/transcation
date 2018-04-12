@@ -43,10 +43,11 @@ public class DubboMythTransactionInterceptor implements MythTransactionIntercept
         this.mythTransactionAspectService = mythTransactionAspectService;
     }
 
-//    这里也是实现分布式事务的最关键一部分，通过同一个事务上下文来关联多子系统之间事务关系，是分布式事务实现的核心所在。
+//    这里也是实现分布式事务的最关键一部分，通过同一个事务上下文来关联多子系统之间的事务关系，是分布式事务实现的核心所在。
     @Override
     public Object interceptor(ProceedingJoinPoint pjp) throws Throwable {
-        //第一次进入切面，RpcContext 中的MYTH_TRANSACTION_CONTEXT context为null
+        // 发起者order第一次进入切面，RpcContext 中的MYTH_TRANSACTION_CONTEXT context为null，
+        // 之后将在调用accountService.payment(accountDTO);和inventoryService.decrease(inventoryDTO);触发dubbo过滤器处理时设置： RpcContext.getContext().setAttachment(CommonConstant.MYTH_TRANSACTION_CONTEXT,GsonUtils.getInstance().toJson(mythTransactionContext));//转成json字符串在存储于上下文中
         //而从account切面和inventory切面进来时，已经存入了 RpcContext 中的MYTH_TRANSACTION_CONTEXT context为order中新建的mythTransactionContext事务上下文，包含事务trans_id和role=1
         final String context = RpcContext.getContext().getAttachment(CommonConstant.MYTH_TRANSACTION_CONTEXT);
         MythTransactionContext mythTransactionContext;
@@ -55,7 +56,7 @@ public class DubboMythTransactionInterceptor implements MythTransactionIntercept
             mythTransactionContext =
                     GsonUtils.getInstance().fromJson(context, MythTransactionContext.class);
         }else{
-            mythTransactionContext= TransactionContextLocal.getInstance().get();//返回new ThreadLocal<>().get()
+            mythTransactionContext= TransactionContextLocal.getInstance().get();//返回new ThreadLocal<>().get()，即为null
         }
 //        因为第一次进来这些变量都没有值，所以我们会直接进入mythTransactionAspectService.invoke(mythTransactionContext, pjp)， 此时mythTransactionContext为null，
         return mythTransactionAspectService.invoke(mythTransactionContext, pjp);

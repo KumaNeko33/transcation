@@ -18,6 +18,7 @@
 package com.github.myth.core.concurrent.threadlocal;
 
 /**
+ * 协调者Id存取
  * @author xiaoyu
  */
 public class CoordinatorLocal {

@@ -43,7 +43,15 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 
 /**
- * 采用rpc框架的某些特性来帮助我们获取到 @Myth注解信息
+ * dubbo过滤器，作用：因为dubbo接口无法使用切面注解拦截，故采用rpc框架的某些特性来帮助我们获取到 @Myth注解信息
+ *  dubbo过滤器实现步骤：
+ *  1.dubbo初始化过程加载META-INF/dubbo/internal/，META-INF/dubbo/，META-INF/services/三个路径(classloaderresource)下面的com.alibaba.dubbo.rpc.Filter文件
+ * 本项目中是使用META-INF/dubbo/路径(classloaderresource)下面的com.alibaba.dubbo.rpc.Filter文件 来加载自定义过滤器
+ *  2.文件配置每行 Name=FullClassName ，必须是实现Filter接口
+ * 本项目的com.alibaba.dubbo.rpc.Filter文件中的配置为 MythTransactionFilter=com.github.myth.dubbo.filter.DubboMythTransactionFilter ，符合这一格式
+ *  3.  @Activate标注扩展能被自动激活，如下所示
+ *  4.  @Activate如果group（provider|consumer）匹配才被加载
+ *  5.  @Activate的value字段标明过滤条件，不写则所有条件下都会被加载，写了则只有dubbo URL中包含该参数名且参数值不为空才被加载
  * @author xiaoyu
  */
 @Activate(group = {Constants.SERVER_KEY, Constants.CONSUMER})
@@ -58,7 +66,6 @@ public class DubboMythTransactionFilter implements Filter {
     @Override
     @SuppressWarnings("unchecked")
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-
         String methodName = invocation.getMethodName();
         Class clazz = invoker.getInterface();
         Class[] args = invocation.getParameterTypes();
@@ -75,7 +82,8 @@ public class DubboMythTransactionFilter implements Filter {
         //只有方法上打了@Myth注解的(即myth != null)才会进入后续逻辑，否则直接执行返回
         if (Objects.nonNull(myth)) {
             try {
-                //这里ThreadLocal里已经设置了 之前在Order的makePayment的@Myth注解切面中 新增的 事务上下文 MythTransactionContext,同一个线程共享这个变量
+                //这里ThreadLocal里已经设置了 之前在Order的makePayment的@Myth注解切面处理器 StartMythTransactionHandler调用mythTransactionManager.begin(point);方法新增的 事务上下文 MythTransactionContext
+                // 并通过TransactionContextLocal.getInstance().set(context);存入了ThreadLocal,同一个线程共享这个变量，所以此时mythTransactionContext不为null
                 final MythTransactionContext mythTransactionContext =
                         TransactionContextLocal.getInstance().get();
                 if (Objects.nonNull(mythTransactionContext)) {
@@ -88,16 +96,17 @@ public class DubboMythTransactionFilter implements Filter {
 //                    一定要注意，调接口时，必须是A直接到B，如果A没有直接到B，而是先到C，再由C到B，那么在B里getAttachment()，就获取不到值了
                     RpcContext.getContext()
                             .setAttachment(CommonConstant.MYTH_TRANSACTION_CONTEXT,
-                                    GsonUtils.getInstance().toJson(mythTransactionContext));
+                                    GsonUtils.getInstance().toJson(mythTransactionContext));//转成json字符串在存储于上下文中
                 }
                 //封装调用点,事务参与者
                 final MythParticipant participant =
                         buildParticipant(mythTransactionContext, myth,
                                 method, clazz, arguments, args);
                 if (Objects.nonNull(participant)) {
-                    //根据配置将 事务调用点 保存到数据库myth表的事务记录中
+                    //根据配置将 事务调用点 保存到数据库myth表的事务记录中：发起者order为保存到myth_order_service的字段invocation中
                     mythTransactionManager.registerParticipant(participant);
                 }
+                // 正式调用dubbo服务，但因为account项目中的AccountServiceImpl的payment方法也使用了@Myth注解，则同发起者order一样会触发@Myth切面拦截DubboMythTransactionInterceptor的interceptor()方法，处理
                 return invoker.invoke(invocation);
 
             } catch (RpcException e) {
@@ -105,7 +114,7 @@ public class DubboMythTransactionFilter implements Filter {
                 return new RpcResult();
             }
         } else {
-//            否则直接执行返回
+//            不带@Myth注解的dubbo方法则直接执行返回
             return invoker.invoke(invocation);
         }
     }

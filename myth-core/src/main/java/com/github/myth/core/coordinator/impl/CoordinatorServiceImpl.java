@@ -19,6 +19,7 @@
 package com.github.myth.core.coordinator.impl;
 
 
+import com.github.myth.annotation.Myth;
 import com.github.myth.common.bean.context.MythTransactionContext;
 import com.github.myth.common.bean.entity.MythInvocation;
 import com.github.myth.common.bean.entity.MythParticipant;
@@ -91,7 +92,7 @@ public class CoordinatorServiceImpl implements CoordinatorService {
         this.applicationService = applicationService;
     }
 
-
+    //mq事务消息对象的序列化工具
     @Override
     public void setSerializer(ObjectSerializer serializer) {
         this.serializer = serializer;
@@ -111,9 +112,9 @@ public class CoordinatorServiceImpl implements CoordinatorService {
         coordinatorRepository = SpringBeanUtils.getInstance().getBean(CoordinatorRepository.class);//即之前注入spring容器的 JdbcCoordinatorRepository
 
         final String repositorySuffix = buildRepositorySuffix(mythConfig.getRepositorySuffix());//mythConfig的配置为repositorySuffix = order-service
-        //初始化spi 协调资源存储
+        //初始化spi 协调资源存储，JDBC的话创建 事务表
         coordinatorRepository.init(repositorySuffix, mythConfig);
-        //初始化 协调资源线程池
+        //初始化 协调资源线程池，用来接收并消费mq事务消息
         initCoordinatorPool();
 
         //如果需要定时自动恢复 开启线程 调度线程池，进行恢复(order独有：定时恢复）
@@ -281,6 +282,14 @@ public class CoordinatorServiceImpl implements CoordinatorService {
      */
     @Override
     public Boolean sendMessage(MythTransaction mythTransaction) {
+        //如果是发起者order，则这里的mythTransaction已经在 StartMythTransactionHandler调用的mythTransactionManager.begin(point);中
+        // 通过CURRENT.set(mythTransaction);在mythTransactionManager的ThreadLocal中设置了一个事务记录，并且将事务记录保存到了数据库的表myth_order_service中
+        // 进入finally的sendMessage方法之前，mythTransactionManager.begin(point);执行完时 mythTransaction中还并没有设置参与协调的方法集合List<MythParticipant> mythParticipants，即表myth_order_service中也没有设置invocation字段的值
+        // StartMythTransactionHandler在mythTransactionManager.begin(point);执行完后，执行return  point.proceed();时，线程将正式进入到order的业务方法paymentService.makePayment 中
+        // 而在执行makePayment方法中，会调用带@Myth注解的 dubbo服务接口 accountService.payment 和  inventoryService.decrease，如下
+//        @Myth(destination = "account")
+//        boolean payment(AccountDTO accountDTO);
+//        这时在正式调用前会被自定义的dubbo过滤器 DubboMythTransactionFilter 进行拦截，此时过滤方法中的if (Objects.nonNull(myth))成立，进入代码块
         final List<MythParticipant> mythParticipants = mythTransaction.getMythParticipants();
             /*
              * 这里的这个判断很重要，不为空，表示本地的方法执行成功，需要执行远端的rpc方法
@@ -288,6 +297,7 @@ public class CoordinatorServiceImpl implements CoordinatorService {
              * 那么考虑问题，如果本地执行成功，调用rpc的时候才需要发
              * 如果本地异常，则不需要发送mq ，此时mythParticipants为空
              */
+//  但发起者order第一次调用sendMessage时mythTransaction.getMythParticipants();为空（下面方法直接跳过），说明方法makePayment还未执行成功
         //发送事务记录消息，若事务记录中的 mythTransaction.getMythParticipants();不为空，说明本地的 方法makePayment执行成功,可发送消息 进行所有项目的commit
         if (CollectionUtils.isNotEmpty(mythParticipants)) {
 
@@ -327,9 +337,9 @@ public class CoordinatorServiceImpl implements CoordinatorService {
 //scheduleWithFixedDelay (Runnable, long initialDelay, long period, TimeUnit timeunit)，period指的当前任务的结束执行时间到下个任务的开始执行时间。
                 .scheduleWithFixedDelay(() -> {
                     LogUtil.debug(LOGGER, "auto recover execute delayTime:{}",
-                            () -> mythConfig.getScheduledDelay());
+                            () -> mythConfig.getScheduledDelay());//120秒
                     try {
-                        //获取延迟多长时间后（即事务记录的last_time小于 这个时间 的事务记录）的并且状态是开始的事务信息,主要为了防止并发的时候，刚新增的数据被执行
+                        //获取延迟多长时间后（即事务记录的last_time小于 这个时间 的事务记录）的并且状态是开始（status==2)的事务信息,主要为了防止并发的时候，刚新增的数据被执行
                         final List<MythTransaction> mythTransactionList =
                                 coordinatorRepository.listAllByDelay(acquireData());
                         if (CollectionUtils.isNotEmpty(mythTransactionList)) {
@@ -337,7 +347,7 @@ public class CoordinatorServiceImpl implements CoordinatorService {
                                     .forEach(mythTransaction -> {
                                         //发送事务记录消息，若事务记录中的 mythTransaction.getMythParticipants();不为空，说明本地的 方法makePayment执行成功,可发送消息 进行所有项目的commit
                                         final Boolean success = sendMessage(mythTransaction);
-                                        //发送成功 ，更改状态
+                                        //发送成功 ，更改数据库的事务记录状态为1（提交）
                                         if (success) {
                                             coordinatorRepository.updateStatus(mythTransaction.getTransId(),
                                                     MythStatusEnum.COMMIT.getCode());
@@ -348,7 +358,7 @@ public class CoordinatorServiceImpl implements CoordinatorService {
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                }, 30, mythConfig.getScheduledDelay(), TimeUnit.SECONDS);//配置getScheduledDelay()=120秒
+                }, 30, mythConfig.getScheduledDelay(), TimeUnit.SECONDS);//scheduleWithFixedDelay方法配置getScheduledDelay()=120秒
 
     }
 
@@ -437,7 +447,8 @@ public class CoordinatorServiceImpl implements CoordinatorService {
                     final CoordinatorAction coordinatorAction = QUEUE.take();
                     if (coordinatorAction != null) {
                         final int code = coordinatorAction.getAction().getCode();
-                        if (CoordinatorActionEnum.SAVE.getCode() == code) {//code=0
+                        if (CoordinatorActionEnum.SAVE.getCode() == code) {//code=0, 发起者order第一次进入切面@Myth处理时，调用StartMythTransactionHandlerd的handler方法中的mythTransactionManager.begin(point);
+                            // 该方法通过coordinatorCommand.execute(new CoordinatorAction(CoordinatorActionEnum.SAVE, mythTransaction)); 将持久化消息发送至此
                             save(coordinatorAction.getMythTransaction());
                         } else if (CoordinatorActionEnum.DELETE.getCode() == code) {//code=1
                             remove(coordinatorAction.getMythTransaction().getTransId());

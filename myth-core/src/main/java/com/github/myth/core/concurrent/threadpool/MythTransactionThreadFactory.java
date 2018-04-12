@@ -57,6 +57,7 @@ public class MythTransactionThreadFactory implements ThreadFactory {
         Set<Thread> alives = new HashSet<Thread>(Arrays.asList(activeThreads));
         Set<Thread> dies = new HashSet<Thread>();
         log.info("Current ACTIVE thread count is: {}", alives.size());
+
         long expire = System.currentTimeMillis() + timeoutInMillis;
         while (System.currentTimeMillis() < expire) {
             classify(alives, dies, thread -> !thread.isAlive() || thread.isInterrupted() || thread.isDaemon());
@@ -109,6 +110,7 @@ public class MythTransactionThreadFactory implements ThreadFactory {
         Thread thread = new Thread(THREAD_GROUP, runnable,
                 THREAD_GROUP.getName() + "-" + namePrefix + "-" + threadNumber.getAndIncrement());
         thread.setDaemon(daemon);//Thread.setDaemon(true)设置为守护线程,JVM结束，守护线程关闭
+        //设置线程优先级
         if (thread.getPriority() != Thread.NORM_PRIORITY) {
             thread.setPriority(Thread.NORM_PRIORITY);
         }

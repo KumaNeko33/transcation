@@ -35,10 +35,14 @@ public class TransactionContextLocal {
 
     private static final TransactionContextLocal TRANSACTION_CONTEXT_LOCAL = new TransactionContextLocal();
 
+    /**
+        私有构造方法，进行单例模式
+     */
     private TransactionContextLocal() {
 
     }
 
+    // 返回单实例
     public static TransactionContextLocal getInstance() {
         return TRANSACTION_CONTEXT_LOCAL;
     }
@@ -53,7 +57,7 @@ public class TransactionContextLocal {
         return CURRENT_LOCAL.get();
     }
 
-//    将当前线程局部变量的值删除，目的是为了减少内存的占用
+//    将当前线程局部变量的值删除，目的是为了减少内存的占用，如果不清理，那么线程池的核心线程的threadLocals变量一直会持有ThreadLocal变量。
     public void remove() {
         CURRENT_LOCAL.remove();
     }

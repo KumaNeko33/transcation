@@ -207,9 +207,9 @@ public class JdbcCoordinatorRepository implements CoordinatorRepository {
         String sb = "select * from " +
                 tableName +
                 " where last_time <?  and status = 2";
-
+//  status:      0:回滚，1：已经提交，2：开始，3：可以发生送消息，4：失败，5：预提交，6：锁定
         List<Map<String, Object>> list = executeQuery(sb, date);
-
+    // 将list内的map元素封装成一个一个 MythTransaction对象（相当于DTO对象)，并返回
         if (CollectionUtils.isNotEmpty(list)) {
             return list.stream().filter(Objects::nonNull)
                     .map(this::buildByResultMap).collect(Collectors.toList());//将list集合转成 包含map（map建立key,对应的值value为 原list集合的元素）的list集合

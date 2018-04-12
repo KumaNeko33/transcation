@@ -117,6 +117,7 @@ public class SpringBeanUtils {
     public void registerBean(String beanName, Object obj) {
         AssertUtils.notNull(beanName);
         AssertUtils.notNull(obj);
+        //beanName="com.github.myth.common.serializer.ObjectSerializer"
         cfgContext.getBeanFactory().registerSingleton(beanName, obj);
     }
 

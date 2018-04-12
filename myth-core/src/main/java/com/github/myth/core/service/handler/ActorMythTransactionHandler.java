@@ -84,6 +84,7 @@ public class ActorMythTransactionHandler implements MythTransactionHandler {
             mythTransactionManager.actorTransaction(point, mythTransactionContext);
 
             //发起调用（执行try方法），继续执行AccountServiceImpl中的加了@Myth切面注解的方法，即进行扣除 account表的余额
+            //存好了事务记录才真正开始 需要事务一致的操作 即进行扣除 account表的余额，这样即使扣除金额过程出了问题也能进行补偿
             final Object proceed = point.proceed();
 //proceed走完，即扣除完 account表的余额，
             //加了@Myth切面注解的方法执行成功, 往下走，更新补偿数据状态为commit，这时因为是account项目的，

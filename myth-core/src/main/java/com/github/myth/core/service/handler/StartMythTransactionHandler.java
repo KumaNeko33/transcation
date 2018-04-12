@@ -83,22 +83,23 @@ public class StartMythTransactionHandler implements MythTransactionHandler {
             //主要防止并发问题，对事务日志的写造成压力，加了锁进行处理
             try {
 //                Ree提供了lock()方法：
-//                如果该锁定没有被另一个线程保持，则获取该锁定并立即返回，将锁定的保持计数设置为 1。
-//                如果当前线程已经保持该锁定，则将保持计数加 1，并且该方法立即返回。
-//                如果该锁定被另一个线程保持，则出于线程调度的目的，禁用当前线程，并且在获得锁定之前，该线程将一直处于休眠状态，此时锁定保持计数被设置为 1。
+//                如果该锁定 没有 被另一个线程保持，则获取该锁定并立即返回，将锁定的保持计数设置为 1。
+//                如果当前线程 已经保持该锁定，则将保持计数加 1，并且该方法立即返回。
+//                如果该锁定 被另一个线程保持，则出于线程调度的目的，禁用当前线程，并且在获得锁定之前，该线程将一直处于休眠状态，此时锁定保持计数被设置为 1。
                 LOCK.lock();
-                mythTransactionManager.begin(point);
+                mythTransactionManager.begin(point);//方法中CURRENT.set(mythTransaction);在mythTransactionManager的ThreadLocal中设置了一个事务记录，并且将事务记录保存到了数据库的表myth_order_service中
             } finally {
                 LOCK.unlock();
             }
-            //切点继续运行，调用point.proceed()正式进入到业务方法paymentService.makePayment中
+            //切点继续运行mian线程，调用point.proceed()正式进入到业务方法paymentService.makePayment中，point.proceed()没执行完不会执行finally方法
            return  point.proceed();
 
         } finally {
-            //发送消息
-            mythTransactionManager.sendMessage();
-            mythTransactionManager.cleanThreadLocal();
-            TransactionContextLocal.getInstance().remove();
+            //finally表示方法返回前 无论如何都需要发送mq消息
+            mythTransactionManager.sendMessage();//事务协调补偿,  而发起者order也会使用scheduledAutoRecover方法定时自动恢复，如果数据库中存在 事务状态为2（开始）的记录，则也调用CoordinatorServiceImpl的sendMessage()方法发送mq消息
+            //难道发起者order的定时自动回复是为了 解决在执行mythTransactionManager.sendMessage();时 服务器宕机 导致事务未提交？
+            mythTransactionManager.cleanThreadLocal();//移除ThreadLocal中的事务数据DTO
+            TransactionContextLocal.getInstance().remove();//移除ThreadLocal中的事务上下文
         }
     }
 
